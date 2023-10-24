@@ -20,7 +20,10 @@
       state: present
 
   - name: Install pexpect
-    pip: name=pexpect state=present
+    pip: 
+      name: pexpect 
+      state: present
+      executable: /usr/bin/pip3  # Replace with the correct path to pip3 on your system
 
   - name: Install Wazuh repositories
     yum_repository:
