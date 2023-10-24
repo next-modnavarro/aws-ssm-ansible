@@ -8,14 +8,7 @@
     register: installed
     tags: ossec
 
-  - local_action:
-      module: ec2_instance_facts
-      region: "{{ region }}"
-      filters:
-        "tag:capa": kubecontrol
-    register: kubecontrol
-
-  - set_fact: ip_kubecontrol={{ kubecontrol.instances[0].private_ip_address }}
+  - set_fact: ip_kubecontrol="10.196.50.49"
     ignore_errors: true
   
   - name: Install dependencies
