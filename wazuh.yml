@@ -2,7 +2,6 @@
 - name: Install wazuh agents in EKS cluster nodes
   hosts: all
   become: yes
-- name: Wazuh - check if installed
   command: /bin/true creates=/var/ossec
   register: installed
   tags: ossec
