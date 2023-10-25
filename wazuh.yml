@@ -1,6 +1,6 @@
 ---
 - name: Install wazuh agents in EKS cluster nodes
-  hosts: 10.196.175.68
+  hosts: all
   become: yes
   tasks: 
   - name: Wazuh - check if installed
