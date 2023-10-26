@@ -8,246 +8,255 @@
     register: installed
     tags: ossec
 
-  - set_fact: ip_kubecontrol="10.196.50.49"
-    ignore_errors: true
+ - local_action:
+     module: ec2_instance_facts
+     region: "{{ region }}"
+     filters:
+       "tag:capa": kubecontrol
+   register: kubecontrol
+
+ - set_fact: ip_kubecontrol={{ kubecontrol.instances[0].private_ip_address }}
+   ignore_errors: true
+
+
     
-  - name: Create a directory if it does not exist
-    ansible.builtin.file:
-      path: /etc/kk
-      state: directory
-      mode: '0755'
+  # - name: Create a directory if it does not exist
+  #   ansible.builtin.file:
+  #     path: /etc/kk
+  #     state: directory
+  #     mode: '0755'
       
-  - name: Install dependencies
-    yum: 
-      name:
-        - gcc
-        - openssl
-        - python3-pip
-      state: present
+  # - name: Install dependencies
+  #   yum: 
+  #     name:
+  #       - gcc
+  #       - openssl
+  #       - python3-pip
+  #     state: present
 
-  - name: Install pexpect
-    pip: 
-      name: pexpect 
-      state: present
-      executable: /usr/bin/pip3  # Replace with the correct path to pip3 on your system
+  # - name: Install pexpect
+  #   pip: 
+  #     name: pexpect 
+  #     state: present
+  #     executable: /usr/bin/pip3  # Replace with the correct path to pip3 on your system
 
-  - name: Install Wazuh repositories
-    yum_repository:
-      name: wazuh-repo
-      description: Wazuh Amazon Linux repo
-      file: wazuh
-      baseurl: https://packages.wazuh.com/4.x/yum/
-      gpgcheck: yes
-      gpgkey: https://packages.wazuh.com/key/GPG-KEY-WAZUH
-      protect: yes
-      enabled: yes
+  # - name: Install Wazuh repositories
+  #   yum_repository:
+  #     name: wazuh-repo
+  #     description: Wazuh Amazon Linux repo
+  #     file: wazuh
+  #     baseurl: https://packages.wazuh.com/4.x/yum/
+  #     gpgcheck: yes
+  #     gpgkey: https://packages.wazuh.com/key/GPG-KEY-WAZUH
+  #     protect: yes
+  #     enabled: yes
 
-  - name: Install Wazuh Agent
-    yum: state=latest name=wazuh-agent
+  # - name: Install Wazuh Agent
+  #   yum: state=latest name=wazuh-agent
 
-  - name: Create folder Script
-    file: path=/root/software state=directory mode=0750
+  # - name: Create folder Script
+  #   file: path=/root/software state=directory mode=0750
 
-  - name: Create folder Software
-    file: path=/root/scripts state=directory mode=0750
+  # - name: Create folder Software
+  #   file: path=/root/scripts state=directory mode=0750
 
-  - name: client.keys exists
-    stat: path=/var/ossec/etc/client.keys
-    register: client_keys
+  # - name: client.keys exists
+  #   stat: path=/var/ossec/etc/client.keys
+  #   register: client_keys
 
-  - debug: var=client_keys.stat.size
+  # - debug: var=client_keys.stat.size
 
 
 
-  - name: Linux | Obtain JWT Token
-    uri:
-      url: 'https://{{ ip_kubecontrol }}:55000/security/user/authenticate'
-      method: GET
-      url_username: '{{ wazuh_user }}'
-      url_password: '{{ wazuh_api_pass }}'
-      status_code: 200
-      return_content: yes
-      force_basic_auth: yes
-      validate_certs: false
-    #delegate_to: '{{ inventory_hostname if wazuh_api_reachable_from_agent else "localhost" }}'
-      #changed_when: api_jwt_result.json.error == 0
-    register: api_jwt_result
-    become: no
+  # - name: Linux | Obtain JWT Token
+  #   uri:
+  #     url: 'https://{{ ip_kubecontrol }}:55000/security/user/authenticate'
+  #     method: GET
+  #     url_username: '{{ wazuh_user }}'
+  #     url_password: '{{ wazuh_api_pass }}'
+  #     status_code: 200
+  #     return_content: yes
+  #     force_basic_auth: yes
+  #     validate_certs: false
+  #   #delegate_to: '{{ inventory_hostname if wazuh_api_reachable_from_agent else "localhost" }}'
+  #     #changed_when: api_jwt_result.json.error == 0
+  #   register: api_jwt_result
+  #   become: no
   
-  - set_fact: 
-      jwt_token: '{{ api_jwt_result.json.data.token }}'
+  # - set_fact: 
+  #     jwt_token: '{{ api_jwt_result.json.data.token }}'
   
-  - block:
+  # - block:
 
-      - name: Obtain local id agent
-        shell: cat /var/ossec/etc/client.keys | sed -e 's/^[^0-9]*\([0-9][0-9]*\).*/\1/'
-        register: agent_id
+  #     - name: Obtain local id agent
+  #       shell: cat /var/ossec/etc/client.keys | sed -e 's/^[^0-9]*\([0-9][0-9]*\).*/\1/'
+  #       register: agent_id
   
-      - set_fact: wazuh_id= "{{ agent_id.stdout }}"
+  #     - set_fact: wazuh_id= "{{ agent_id.stdout }}"
   
-      - name: Obtain status agent
-        uri:
-          url: https://{{ ip_kubecontrol }}:55000/agents/{{ wazuh_id }}
-          method: GET
-          headers:
-            Authorization: 'Bearer {{ jwt_token }}'
-          validate_certs: false
-        register: agent_status
-        ignore_errors: true
+  #     - name: Obtain status agent
+  #       uri:
+  #         url: https://{{ ip_kubecontrol }}:55000/agents/{{ wazuh_id }}
+  #         method: GET
+  #         headers:
+  #           Authorization: 'Bearer {{ jwt_token }}'
+  #         validate_certs: false
+  #       register: agent_status
+  #       ignore_errors: true
   
-      - set_fact: wazuh_message={{ agent_status.json.message }}
-        ignore_errors: true
+  #     - set_fact: wazuh_message={{ agent_status.json.message }}
+  #       ignore_errors: true
   
-      - set_fact: wazuh_status={{ agent_status.json.data.status }}
-        ignore_errors: true
+  #     - set_fact: wazuh_status={{ agent_status.json.data.status }}
+  #       ignore_errors: true
     
-      - set_fact: wazuh_status=not_defined_before_step
-        when: wazuh_status is not defined
+  #     - set_fact: wazuh_status=not_defined_before_step
+  #       when: wazuh_status is not defined
   
-      - set_fact: wazuh_message=not_defined_before_step
-        when: wazuh_message is not defined
+  #     - set_fact: wazuh_message=not_defined_before_step
+  #       when: wazuh_message is not defined
   
-    when: client_keys.stat.size > 0
+  #   when: client_keys.stat.size > 0
 
-  - block:
+  # - block:
 
-      - name: Obtain local id agent
-        shell: cat /var/ossec/etc/client.keys | sed -e 's/^[^0-9]*\([0-9][0-9]*\).*/\1/'
-        register: agent_id
+  #     - name: Obtain local id agent
+  #       shell: cat /var/ossec/etc/client.keys | sed -e 's/^[^0-9]*\([0-9][0-9]*\).*/\1/'
+  #       register: agent_id
   
-      - set_fact: kk= "{{ agent_id.stdout }}"
+  #     - set_fact: kk= "{{ agent_id.stdout }}"
 
-      - debug:
-          msg: "local agent id {{ agent_id.stdout }}  assigned {{ kk }}"
+  #     - debug:
+  #         msg: "local agent id {{ agent_id.stdout }}  assigned {{ kk }}"
 
-      - name: Delete inactive agent
-        uri:
-          url: https://{{ ip_kubecontrol }}:55000/agents?older_than=0s&agents_list={{ agent_id.stdout }}&status=all
-          method: DELETE
-          headers:
-            Authorization: 'Bearer {{ jwt_token }}'
-          validate_certs: false
-        register: agent_delete
+  #     - name: Delete inactive agent
+  #       uri:
+  #         url: https://{{ ip_kubecontrol }}:55000/agents?older_than=0s&agents_list={{ agent_id.stdout }}&status=all
+  #         method: DELETE
+  #         headers:
+  #           Authorization: 'Bearer {{ jwt_token }}'
+  #         validate_certs: false
+  #       register: agent_delete
 
-      - name: Register Agent - obtain id
-        uri:
-          url: https://{{ ip_kubecontrol }}:55000/agents
-          method: POST
-          body_format: json
-          status_code: 200
-          return_content: yes
-          body: 
-            name: "{{ ansible_hostname }}"
-            ip: "{{ ansible_eth0.ipv4.address }}"
-          headers:
-            Authorization: 'Bearer {{ jwt_token }}'
-          validate_certs: false
-        register: wazuh_json
+  #     - name: Register Agent - obtain id
+  #       uri:
+  #         url: https://{{ ip_kubecontrol }}:55000/agents
+  #         method: POST
+  #         body_format: json
+  #         status_code: 200
+  #         return_content: yes
+  #         body: 
+  #           name: "{{ ansible_hostname }}"
+  #           ip: "{{ ansible_eth0.ipv4.address }}"
+  #         headers:
+  #           Authorization: 'Bearer {{ jwt_token }}'
+  #         validate_certs: false
+  #       register: wazuh_json
 
-      - name: Set agent id
-        set_fact:
-          agent_id: "{{ wazuh_json.json.data.id }}"
+  #     - name: Set agent id
+  #       set_fact:
+  #         agent_id: "{{ wazuh_json.json.data.id }}"
 
-      - debug: var=wazuh_json.json.data.id
+  #     - debug: var=wazuh_json.json.data.id
 
-      - name: Register Agent - obtain key
-        uri:
-          url: https://{{ ip_kubecontrol }}:55000/agents/{{ agent_id }}/key
-          method: GET
-          headers:
-            Authorization: 'Bearer {{ jwt_token }}'
-          validate_certs: false
-        register: wazuh_key_json
+  #     - name: Register Agent - obtain key
+  #       uri:
+  #         url: https://{{ ip_kubecontrol }}:55000/agents/{{ agent_id }}/key
+  #         method: GET
+  #         headers:
+  #           Authorization: 'Bearer {{ jwt_token }}'
+  #         validate_certs: false
+  #       register: wazuh_key_json
 
-      - name: Set agent key
-        set_fact:
-          agent_key: "{{ wazuh_key_json.json.data.affected_items[0].key }}"
-
-
-      - name: Register key in Agent
-        expect:
-          echo: yes
-          command: /var/ossec/bin/manage_agents -i "{{ agent_key }}"
-          responses:
-            "(\\(y\\/n\\))": "y"
-
-    when: client_keys.stat.size > 0 and wazuh_status != "Active" and wazuh_message != "Agent does not exist."
+  #     - name: Set agent key
+  #       set_fact:
+  #         agent_key: "{{ wazuh_key_json.json.data.affected_items[0].key }}"
 
 
-  - block:
+  #     - name: Register key in Agent
+  #       expect:
+  #         echo: yes
+  #         command: /var/ossec/bin/manage_agents -i "{{ agent_key }}"
+  #         responses:
+  #           "(\\(y\\/n\\))": "y"
 
-    - debug: var=ip_kubecontrol
-
-    - name: Register Agent - obtain id
-      uri:
-        url: https://{{ ip_kubecontrol }}:55000/agents
-        method: POST
-        body_format: json
-        status_code: 200
-        return_content: yes
-        headers:
-          Authorization: 'Bearer {{ jwt_token }}'
-        body: 
-          name: "{{ ansible_hostname }}"
-          ip: "{{ ansible_eth0.ipv4.address }}"
-        validate_certs: false
-      register: wazuh_json
-
-    - debug: var=wazuh_json
-
-    - name: Set agent id
-      set_fact:
-        agent_id: "{{ wazuh_json.json.data.id }}"
-
-    - debug: var=wazuh_json.json.data.id
+  #   when: client_keys.stat.size > 0 and wazuh_status != "Active" and wazuh_message != "Agent does not exist."
 
 
-    - name: Register Agent - obtain key
-      uri:
-        url: https://{{ ip_kubecontrol }}:55000/agents/{{ agent_id }}/key
-        method: GET
-        return_content: yes
-        status_code: 200
-        headers:
-          Authorization: 'Bearer {{ jwt_token }}'
-        validate_certs: false
-      register: wazuh_key_json
+  # - block:
 
-    - debug: var=wazuh_key_json
+  #   - debug: var=ip_kubecontrol
+
+  #   - name: Register Agent - obtain id
+  #     uri:
+  #       url: https://{{ ip_kubecontrol }}:55000/agents
+  #       method: POST
+  #       body_format: json
+  #       status_code: 200
+  #       return_content: yes
+  #       headers:
+  #         Authorization: 'Bearer {{ jwt_token }}'
+  #       body: 
+  #         name: "{{ ansible_hostname }}"
+  #         ip: "{{ ansible_eth0.ipv4.address }}"
+  #       validate_certs: false
+  #     register: wazuh_json
+
+  #   - debug: var=wazuh_json
+
+  #   - name: Set agent id
+  #     set_fact:
+  #       agent_id: "{{ wazuh_json.json.data.id }}"
+
+  #   - debug: var=wazuh_json.json.data.id
+
+
+  #   - name: Register Agent - obtain key
+  #     uri:
+  #       url: https://{{ ip_kubecontrol }}:55000/agents/{{ agent_id }}/key
+  #       method: GET
+  #       return_content: yes
+  #       status_code: 200
+  #       headers:
+  #         Authorization: 'Bearer {{ jwt_token }}'
+  #       validate_certs: false
+  #     register: wazuh_key_json
+
+  #   - debug: var=wazuh_key_json
   
-    - name: Set agent key
-      set_fact:
-        agent_key: "{{ wazuh_key_json.json.data.affected_items[0].key }}"
+  #   - name: Set agent key
+  #     set_fact:
+  #       agent_key: "{{ wazuh_key_json.json.data.affected_items[0].key }}"
 
 
-    - name: Register key in Agent
-      expect:
-        echo: yes
-        command: /var/ossec/bin/manage_agents -i "{{ agent_key }}"
-        responses:
-            "(\\(y\\/n\\))": "y"
+  #   - name: Register key in Agent
+  #     expect:
+  #       echo: yes
+  #       command: /var/ossec/bin/manage_agents -i "{{ agent_key }}"
+  #       responses:
+  #           "(\\(y\\/n\\))": "y"
 
-  #   when: update is defined and update | match("no")
-    when: client_keys.stat.size <= 0 or wazuh_message == "Agent does not exist."
+  # #   when: update is defined and update | match("no")
+  #   when: client_keys.stat.size <= 0 or wazuh_message == "Agent does not exist."
 
-  - replace:
-      path: /var/ossec/etc/ossec.conf
-      regexp: 'MANAGER_IP'
-      replace: '{{ ip_kubecontrol }}'
-      backup: yes
+  # - replace:
+  #     path: /var/ossec/etc/ossec.conf
+  #     regexp: 'MANAGER_IP'
+  #     replace: '{{ ip_kubecontrol }}'
+  #     backup: yes
 
-  - replace:
-      path: /var/ossec/etc/ossec.conf
-      regexp: '<address>localhost</address>'
-      replace: '<address>{{ ip_kubecontrol }}</address>'
-      backup: yes
+  # - replace:
+  #     path: /var/ossec/etc/ossec.conf
+  #     regexp: '<address>localhost</address>'
+  #     replace: '<address>{{ ip_kubecontrol }}</address>'
+  #     backup: yes
 
 
 
-  # - debug: msg={{ id_agent }}
+  # # - debug: msg={{ id_agent }}
 
-  - name: Reload Systemd
-    shell: systemctl daemon-reload
+  # - name: Reload Systemd
+  #   shell: systemctl daemon-reload
     
-  - name: Start Ossec server
-    command: /var/ossec/bin/wazuh-control restart
+  # - name: Start Ossec server
+  #   command: /var/ossec/bin/wazuh-control restart
