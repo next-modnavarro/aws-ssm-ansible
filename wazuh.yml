@@ -8,15 +8,15 @@
     register: installed
     tags: ossec
 
- - local_action:
+  - local_action:
      module: ec2_instance_facts
      region: "{{ region }}"
      filters:
        "tag:capa": kubecontrol
-   register: kubecontrol
-
- - set_fact: ip_kubecontrol={{ kubecontrol.instances[0].private_ip_address }}
-   ignore_errors: true
+    register: kubecontrol
+  
+  - set_fact: ip_kubecontrol={{ kubecontrol.instances[0].private_ip_address }}
+    ignore_errors: true
 
 
     
