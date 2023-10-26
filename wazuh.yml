@@ -1,6 +1,8 @@
 ---
 - name: Install wazuh agents in EKS cluster nodes
   hosts: all
+  vars:
+    ansible_python_interpreter: /usr/bin/python3  # Specify the path to Python 3 on your remote hosts
   become: yes
   tasks: 
   - name: Wazuh - check if installed
